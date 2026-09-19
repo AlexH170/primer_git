@@ -1,0 +1,235 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+
+    <title>Lista de Usuarios</title>
+</head>
+
+<body>
+    <!-- botòn modal -->
+
+    <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#staticBackdrop">
+        Registrar Usuario
+    </button>
+
+
+    <div class="container mt-5">
+        <h1 class="text-center mb-4">Lista de Usuarios</h1>
+
+        <table class="table table-dark table-striped">
+            <thead>
+                <tr>
+                    <th scope="col">Codigo</th>
+                    <th scope="col">Nombre</th>
+                    <th scope="col">Apellidos</th>
+                    <th scope="col">Correo</th>
+                    <th scope="col">Password</th>
+                    <th scope="col">Acciones</th>
+                </tr>
+            </thead>
+            <tbody id="tabla-usuario">
+                <tr>
+                    <td colspan="6" class="text-center">Cargando datos...</td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+
+
+    <form action="" method="post" id="miFormulario">
+        <!-- modal -->
+
+        <div class="modal fade" id="staticBackdrop" data-bs-backdrop="static" data-bs-keyboard="false" tabindex="-1"
+            aria-labelledby="staticBackdropLabel" aria-hidden="true">
+            <div class="modal-dialog">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h1 class="modal-title fs-5" id="staticBackdropLabel">Registrar Usuario</h1>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                    </div>
+                    <div class="modal-body">
+                        <input type="hidden" class="form-control mb-2" id="idOriginal">
+                        <label class="form-label">Código</label>
+                        <input type="text" class="form-control mb-2 codigo" id="codigo">
+                        <label class="form-label">Nombre</label>
+                        <input type="text" class="form-control mb-2 nombre" id="nombre">
+                        <label class="form-label">Apellido</label>
+                        <input type="text" class="form-control mb-2 apellido" id="apellido">
+                        <label class="form-label">Correo</label>
+                        <input type="text" class="form-control mb-2 correo" id="correo">
+                        <label class="form-label">Contraseña</label>
+                        <input type="password" class="form-control mb-2 password" id="password">
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cerrar</button>
+                        <button type="submit" class="btn btn-primary">Guardar</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </form>
+
+    <div id="mensaje"></div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        async function cargarUsuarios() {
+            const tbody = document.getElementById("tabla-usuario");
+
+            try {
+                tbody.innerHTML = `<tr><td colspan="6" class="text-center">Cargando datos...</td></tr>`;
+
+                const response = await fetch("http://localhost:3000/users");
+
+                if (!response.ok) {
+                    throw new Error(`Error en HTTP ${response.status}`);
+                }
+
+                const usuarios = await response.json();
+                console.log('Datos recibidos:', usuarios);
+
+                tbody.innerHTML = '';
+
+                if (usuarios.length === 0) {
+                    tbody.innerHTML = `<tr><td colspan="6" class="text-center">No hay usuarios registrados</td></tr>`;
+                    return;
+                }
+
+                usuarios.forEach(usuario => {
+                    const fila = document.createElement('tr');
+                    const id = usuario.id ?? usuario.codigo;
+                    fila.innerHTML =
+                        `<td>${usuario.codigo || usuario.id || ''}</td>` +
+                        `<td>${usuario.nombre || ''}</td>` +
+                        `<td>${usuario.apellidos || ''}</td>` +
+                        `<td>${usuario.correo || ''}</td>` +
+                        `<td>${usuario.password || ''}</td>` +
+                        `<td>
+                            <button class="btn btn-warning btn-sm" onclick="editar('${id}')">✏️</button>
+                            <button class="btn btn-danger btn-sm" onclick="eliminar('${id}')">🗑️</button>
+                        </td>`;
+                    tbody.appendChild(fila);
+                });
+
+            } catch (error) {
+                console.error('Error al cargar usuarios:', error);
+
+                let mensajeError = 'Error al cargar los datos';
+                if (error.message.includes('Failed to fetch') || error.message.includes('ERR_CONNECTION_REFUSED')) {
+                    mensajeError = 'Error: No se puede conectar al servidor. Verifica que el backend este ejecutandose en el puerto 3000';
+                }
+
+                tbody.innerHTML = `
+                    <tr>
+                        <td colspan="6" class="text-center text-danger">
+                            ${mensajeError}
+                        </td>
+                    </tr>
+                `;
+            }
+        }
+
+        document.addEventListener('DOMContentLoaded', cargarUsuarios);
+
+
+    </script>
+<script>
+     const formulario = document.getElementById('miFormulario');
+        // 2) Escuchamos el evento "submit" (cuando el usuario presiona el botón)
+        formulario.addEventListener('submit', async (evento) => {
+            // 3) Evitamos que el formulario recargue la página (comportamiento por defecto)
+            evento.preventDefault();
+
+            // 4) Leemos los valores que escribió el usuario
+            const idOriginal = document.getElementById('idOriginal').value;
+            const codigo = document.getElementById('codigo').value;
+            const nombre = document.getElementById('nombre').value;
+            const apellidos = document.getElementById('apellido').value;
+            const correo = document.getElementById('correo').value;
+            const password = document.getElementById('password').value;
+
+            // 5) Armamos el objeto con los datos a enviar
+            const datos = { codigo, nombre, apellidos, correo, password };
+
+            try {
+                let respuesta;
+                if (idOriginal) {
+                    // Si hay id, actualizamos (PUT)
+                    respuesta = await fetch(`http://localhost:3000/user/${idOriginal}`, {
+                        method: 'PUT',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(datos),
+                    });
+                } else {
+                    // Si no hay id, creamos (POST)
+                    respuesta = await fetch('http://localhost:3000/user', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(datos),
+                    });
+                }
+
+                // 7) Leemos la respuesta del servidor como JSON
+                const resultado = await respuesta.json();
+
+                // 8) Mostramos un mensaje según lo que respondió el servidor
+                const mensaje = document.getElementById('mensaje');
+                if (resultado.ok || respuesta.ok) {
+                    mensaje.textContent = idOriginal ? ' Actualizado correctamente' : ' Guardado con id ' + resultado.id;
+                    formulario.reset(); // limpia los campos
+                    document.getElementById('idOriginal').value = '';
+                    await cargarUsuarios();
+                } else {
+                    mensaje.textContent = ' Error: ' + resultado.error;
+                }
+            } catch (error) {
+                // 9) Si falla la conexión (servidor apagado, red, etc.)
+                document.getElementById('mensaje').textContent = ' No se pudo conectar al servidor';
+                console.error(error);
+            }
+        });
+
+
+// 3. Eliminar usuario
+async function eliminar(id) {
+  await fetch(`http://localhost:3000/user/${id}`, { method: 'DELETE' })
+    .catch(() => alert('Error de conexión con el servidor'));
+
+  cargarUsuarios();
+}
+
+
+// 4. Editar usuario (abre el modal con los datos cargados)
+async function editar(id) {
+  try {
+    const res = await fetch(`http://localhost:3000/user/${id}`);
+    const resultado = await res.json();
+    const u = resultado.data || resultado;
+
+    // Rellenar el formulario con los datos del usuario
+    document.getElementById('idOriginal').value = u.id ?? id;
+    document.getElementById('codigo').value = u.codigo ?? u.id ?? '';
+    document.getElementById('nombre').value = u.nombre ?? '';
+    document.getElementById('apellido').value = u.apellidos ?? '';
+    document.getElementById('correo').value = u.correo ?? '';
+    document.getElementById('password').value = u.password ?? '';
+
+    new bootstrap.Modal(document.getElementById('staticBackdrop')).show();
+  } catch (error) {
+    alert('Error al cargar el usuario');
+    console.error(error);
+  }
+}
+
+</script>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/js/bootstrap.bundle.min.js"
+        integrity="sha384-FKyoEForCGlyvwx9Hj09JcYn3nv7wiPVlz7YYwJrWVcXK/BmnVDxM+D2scQbITxI"
+        crossorigin="anonymous"></script>
+</body>
+
+</html>
